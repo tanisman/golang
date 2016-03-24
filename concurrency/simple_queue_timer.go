@@ -16,57 +16,74 @@ int GetTickCount()
 import "C"
 
 type timer struct {
-    id int
-    startTick int
-    ticks int
-    alive bool
+    id_ int
+    start_tick_ int
+    ticks_ int
+    alive_ bool
 }
 
+const NUM_WORKERS = 8
+
+//timer queue
 var ch chan *timer = make (chan *timer, 1024)
 
 func main() {
-    fmt.Println("wat")
-    for i := 0; i < 8; i++ {
+    fmt.Println("start")
+    //start worker threads
+    for i := 0; i < NUM_WORKERS; i++ {
         go timerWorker()
     }
     
-    for i := 0; i < 1024; i++ {
-        t := timer{ id:i }
-        t.ticks = 100
-        t.start()
-    }
-    fmt.Println("allocated")
+    //start test
+    benchmark()
+    
     var input string
     fmt.Scanln(&input)
 }
 
+func benchmark() {
+    for i := 0; i < 1024; i++ {
+        t := timer{ id_:i }
+        t.ticks_ = 100
+        t.start()
+    }
+}
+
+//starts the timer
 func (this *timer) start() {
-    this.startTick = int(C.GetTickCount())
-    this.alive = true
+    this.start_tick_ = int(C.GetTickCount())
+    this.alive_ = true
     this.enqueue()
 }
 
+//enqueues the timer to timer queue
 func (this *timer) enqueue() {
     ch <- this
 }
 
+//stops the timer
+func (this *timer) stop() {
+    this.alive_ = false
+}
+
+//the timer's callback
 func (this *timer) callback(elapsed int) {
-    fmt.Println("timer", this.id, "ticks", this.ticks, "elapsed", elapsed)
+    fmt.Println("timer", this.id_, "ticks", this.ticks_, "elapsed", elapsed)
 }
 
 func timerWorker() {
     for {
-        var it *timer
+        var it_ *timer
         select {
-            case it = <- ch:
+            case it_ = <- ch:
                 tick := int(C.GetTickCount())
-                if tick - it.startTick >= it.ticks && it.alive {
-                    it.callback(tick - it.startTick)
-                    it.startTick = tick
+                if tick - it_.start_tick_ >= it_.ticks_ && it_.alive_ {
+                    it_.callback(tick - it_.start_tick_)
+                    it_.start_tick_ = tick
                 }
-                ch <- it
+                ch <- it_
             default:
-                it = nil
+                it_ = nil
         }
     }
 }
